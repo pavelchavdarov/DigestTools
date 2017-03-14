@@ -28,17 +28,19 @@ public class SignatureTool {
         return new String(hexChars);
     }
     
-    public static String HexToBytes(byte[] bytes) {
-        char[] hexChars = new char[bytes.length * 2];
-        for ( int j = 0; j < bytes.length; j++ ) {
-            int v = bytes[j] & 0xFF;
-            hexChars[j * 2] = hexArray[v >>> 4];
-            hexChars[j * 2 + 1] = hexArray[v & 0x0F];
-        }
-        return new String(hexChars);
+    public static byte[] HexToBytes(String signature) {
+        char[] arr = signature.toCharArray();
+            byte[] b_arr = new byte[arr.length/2];
+            byte b = 0;
+            int j = 0;
+            for(int i = 0; i+2<=arr.length;i+=2 ){
+                b = (byte) Integer.parseInt(String.format("%s%s",arr[i],arr[i+1]), 16);
+                b_arr[j++] = (byte) (b);
+            }
+        return b_arr;
     }
     
-    private String signAlg;
+    private final String signAlg;
     private String Provider;
     private PrivateKey signKey; 
     private PublicKey verifyKey;
@@ -59,13 +61,13 @@ public class SignatureTool {
         //signer.initVerify(verifyKey);
         signer.update(dataToSign.getBytes());
         return bytesToHex(signer.sign());//Base64.encodeBase64String(signer.sign());//bytesToHex(signer.sign());
-        
+               
     }
-    
+
     public boolean verify(String dataToVerify, byte[] signature) throws NoSuchAlgorithmException, SignatureException, InvalidKeyException{
         Signature signer = Signature.getInstance(signAlg);
         signer.initVerify(verifyKey);
-//        signer.update(dataToVerify.getBytes());
+        signer.update(dataToVerify.getBytes());
         return signer.verify(signature);
         
     }
