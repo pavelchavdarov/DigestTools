@@ -73,7 +73,7 @@ public class SignatureTool {
     }
             
     public void initKeys(String pKeyStorePath, String pKeyStorePasswd, String pDSAlias, String pPrivKeyPasswd,  String pCheckDSAlias) throws KeyStoreException, CertificateException, NoSuchAlgorithmException, IOException, UnrecoverableEntryException{
-        KeyStore ks = TrustStoreLoader.loadTrustStore(pKeyStorePath,pKeyStorePasswd);
+        KeyStore ks = TrustStoreLoader.loadKeyStore(pKeyStorePath,pKeyStorePasswd);
         KeyStore.PasswordProtection passProtection = new KeyStore.PasswordProtection(pPrivKeyPasswd.toCharArray());
         KeyStore.PrivateKeyEntry DSKeyEnt = (KeyStore.PrivateKeyEntry)ks.getEntry(pDSAlias, passProtection);
         KeyStore.PrivateKeyEntry CheckDSKeyEnt = (KeyStore.PrivateKeyEntry)ks.getEntry(pCheckDSAlias, passProtection);
