@@ -6,9 +6,14 @@
 package RGSDigestTools;
 
 import RGSCommonUtils.TrustStoreLoader;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.security.*;
 import java.security.cert.CertificateException;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.X509EncodedKeySpec;
+import java.util.logging.Logger;
 import org.apache.commons.codec.binary.Base64;
 
 /**
@@ -58,7 +63,6 @@ public class SignatureTool {
     public String sign(String dataToSign) throws NoSuchAlgorithmException, SignatureException, InvalidKeyException{
         Signature signer = Signature.getInstance(signAlg);
         signer.initSign(signKey);
-        //signer.initVerify(verifyKey);
         signer.update(dataToSign.getBytes());
         return bytesToHex(signer.sign());//Base64.encodeBase64String(signer.sign());//bytesToHex(signer.sign());
                
@@ -71,15 +75,65 @@ public class SignatureTool {
         return signer.verify(signature);
         
     }
-            
-    public void initKeys(String pKeyStorePath, String pKeyStorePasswd, String pDSAlias, String pPrivKeyPasswd,  String pCheckDSAlias) throws KeyStoreException, CertificateException, NoSuchAlgorithmException, IOException, UnrecoverableEntryException{
+    
+    /**
+     * Init keys with private and public key from keystore
+     * @param pKeyStorePath
+     * @param pKeyStorePasswd
+     * @param pDSAlias
+     * @param pPrivKeyPasswd
+     * @param pCheckDSAlias
+     * @throws KeyStoreException
+     * @throws CertificateException
+     * @throws NoSuchAlgorithmException
+     * @throws IOException
+     * @throws UnrecoverableEntryException 
+     */
+    public void initKeysWithKeystore(String pKeyStorePath, String pKeyStorePasswd, String pDSAlias, String pPrivKeyPasswd,  String pCheckDSAlias) throws KeyStoreException, CertificateException, NoSuchAlgorithmException, IOException, UnrecoverableEntryException{
         KeyStore ks = TrustStoreLoader.loadKeyStore(pKeyStorePath,pKeyStorePasswd);
         KeyStore.PasswordProtection passProtection = new KeyStore.PasswordProtection(pPrivKeyPasswd.toCharArray());
         KeyStore.PrivateKeyEntry DSKeyEnt = (KeyStore.PrivateKeyEntry)ks.getEntry(pDSAlias, passProtection);
         KeyStore.PrivateKeyEntry CheckDSKeyEnt = (KeyStore.PrivateKeyEntry)ks.getEntry(pCheckDSAlias, passProtection);
         
         this.signKey = DSKeyEnt.getPrivateKey();
-        this.verifyKey =  DSKeyEnt.getCertificate().getPublicKey(); //CheckDSKeyEnt.getCertificate().getPublicKey();
+        this.verifyKey =  CheckDSKeyEnt.getCertificate().getPublicKey();
+        
+    }
+    
+    /**
+     * Init keys with private key from keystore and pubkey from resource
+     * @param pKeyStorePath
+     * @param pKeyStorePasswd
+     * @param pDSAlias
+     * @param pPrivKeyPasswd
+     * @param PubkeyResource 
+     * @throws java.security.KeyStoreException 
+     * @throws java.security.cert.CertificateException 
+     * @throws java.security.NoSuchAlgorithmException 
+     * @throws java.io.IOException 
+     * @throws java.security.UnrecoverableEntryException 
+     * @throws java.security.spec.InvalidKeySpecException 
+     */
+    public void initKeysWithAndFile(String pKeyStorePath, String pKeyStorePasswd, String pDSAlias, String pPrivKeyPasswd,  String PubkeyResource)
+                throws KeyStoreException, CertificateException, NoSuchAlgorithmException, IOException, UnrecoverableEntryException, InvalidKeySpecException{
+        KeyStore ks = TrustStoreLoader.loadKeyStore(pKeyStorePath,pKeyStorePasswd);
+        KeyStore.PasswordProtection passProtection = new KeyStore.PasswordProtection(pPrivKeyPasswd.toCharArray());
+        KeyStore.PrivateKeyEntry DSKeyEnt = (KeyStore.PrivateKeyEntry)ks.getEntry(pDSAlias, passProtection);
+        
+        this.signKey = DSKeyEnt.getPrivateKey();
+        
+        InputStream is = SignatureTool.class.getResourceAsStream(PubkeyResource);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        int read = is.read();
+        while(read != -1){
+            baos.write(read);
+            read = is.read();
+        }
+        
+        byte[] keyBytes = baos.toByteArray();
+        X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
+        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+        this.verifyKey = keyFactory.generatePublic(spec);
     }
     
     public String showKeys(){

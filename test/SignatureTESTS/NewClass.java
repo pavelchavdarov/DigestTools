@@ -23,7 +23,7 @@ public class NewClass {
     public void main() throws Exception{
         try {
             SignatureTool st = new SignatureTool("SHA1withRSA");
-            st.initKeys("/RGSDigestTools/ds_keystore.jks", "changeit", "digsig_pair", "digsig", "qwe");
+            st.initKeysWithKeystore("/RGSDigestTools/ds_keystore.jks", "changeit", "digsig_pair", "digsig", "qwe");
             System.out.println(st.showKeys());
             String signature = st.sign("test");
             System.out.println("Signature of \"test\": " + signature);
