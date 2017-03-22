@@ -9,12 +9,14 @@ import RGSCommonUtils.TrustStoreLoader;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.UnsupportedEncodingException;
 import java.security.*;
 import java.security.cert.CertificateException;
 import java.security.spec.InvalidKeySpecException;
+import java.security.spec.PKCS8EncodedKeySpec;
 import java.security.spec.X509EncodedKeySpec;
-import java.util.logging.Logger;
 import org.apache.commons.codec.binary.Base64;
+
 
 /**
  *
@@ -39,7 +41,7 @@ public class SignatureTool {
             byte b = 0;
             int j = 0;
             for(int i = 0; i+2<=arr.length;i+=2 ){
-                b = (byte) Integer.parseInt(String.format("%s%s",arr[i],arr[i+1]), 16);
+                b = (byte) Integer.parseInt( String.format("%s%s",arr[i],arr[i+1]), 16);
                 b_arr[j++] = (byte) (b);
             }
         return b_arr;
@@ -60,15 +62,15 @@ public class SignatureTool {
     }
 
     
-    public String sign(String dataToSign) throws NoSuchAlgorithmException, SignatureException, InvalidKeyException{
+    public String sign(String dataToSign) throws NoSuchAlgorithmException, SignatureException, InvalidKeyException, UnsupportedEncodingException{
         Signature signer = Signature.getInstance(signAlg);
         signer.initSign(signKey);
-        signer.update(dataToSign.getBytes());
+        signer.update(dataToSign.getBytes("Windows-1251"));
         return bytesToHex(signer.sign());//Base64.encodeBase64String(signer.sign());//bytesToHex(signer.sign());
                
     }
 
-    public boolean verify(String dataToVerify, byte[] signature) throws NoSuchAlgorithmException, SignatureException, InvalidKeyException{
+    public boolean verify(String dataToVerify, byte[] signature) throws NoSuchAlgorithmException, SignatureException, InvalidKeyException, UnsupportedEncodingException{
         Signature signer = Signature.getInstance(signAlg);
         signer.initVerify(verifyKey);
         signer.update(dataToVerify.getBytes());
@@ -114,13 +116,48 @@ public class SignatureTool {
      * @throws java.security.UnrecoverableEntryException 
      * @throws java.security.spec.InvalidKeySpecException 
      */
-    public void initKeysWithAndFile(String pKeyStorePath, String pKeyStorePasswd, String pDSAlias, String pPrivKeyPasswd,  String PubkeyResource)
+    public void initKeysWithKeystoreAndFile(String pKeyStorePath, String pKeyStorePasswd, String pDSAlias, String pPrivKeyPasswd,  String PubkeyResource)
                 throws KeyStoreException, CertificateException, NoSuchAlgorithmException, IOException, UnrecoverableEntryException, InvalidKeySpecException{
         KeyStore ks = TrustStoreLoader.loadKeyStore(pKeyStorePath,pKeyStorePasswd);
         KeyStore.PasswordProtection passProtection = new KeyStore.PasswordProtection(pPrivKeyPasswd.toCharArray());
         KeyStore.PrivateKeyEntry DSKeyEnt = (KeyStore.PrivateKeyEntry)ks.getEntry(pDSAlias, passProtection);
         
         this.signKey = DSKeyEnt.getPrivateKey();
+        
+        InputStream is = SignatureTool.class.getResourceAsStream(PubkeyResource);
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        int read = is.read();
+        while(read != -1){
+            baos.write(read);
+            read = is.read();
+        }
+        
+        byte[] keyBytes = baos.toByteArray();
+        X509EncodedKeySpec spec = new X509EncodedKeySpec(keyBytes);
+        KeyFactory keyFactory = KeyFactory.getInstance("RSA");
+        this.verifyKey = keyFactory.generatePublic(spec);
+    }
+    
+    public void initKeysWithFiles(String PrivkeyResource,  String PubkeyResource)
+                throws KeyStoreException, CertificateException, NoSuchAlgorithmException, IOException, UnrecoverableEntryException, InvalidKeySpecException{
+//        KeyStore ks = TrustStoreLoader.loadKeyStore(pKeyStorePath,pKeyStorePasswd);
+//        KeyStore.PasswordProtection passProtection = new KeyStore.PasswordProtection(pPrivKeyPasswd.toCharArray());
+//        KeyStore.PrivateKeyEntry DSKeyEnt = (KeyStore.PrivateKeyEntry)ks.getEntry(pDSAlias, passProtection);
+//      
+        InputStream is_piv = SignatureTool.class.getResourceAsStream(PrivkeyResource);
+        ByteArrayOutputStream baos_priv = new ByteArrayOutputStream();
+        int read_priv = is_piv.read();
+        while(read_priv != -1){
+            baos_priv.write(read_priv);
+            read_priv = is_piv.read();
+        }
+        byte[] keyBytes_priv = baos_priv.toByteArray();
+        PKCS8EncodedKeySpec spec_pkcs8 = new PKCS8EncodedKeySpec(keyBytes_priv);
+        KeyFactory keyFactoryPriv = KeyFactory.getInstance("RSA");
+        this.signKey = keyFactoryPriv.generatePrivate(spec_pkcs8);
+        
+        
+//        this.signKey = DSKeyEnt.getPrivateKey();
         
         InputStream is = SignatureTool.class.getResourceAsStream(PubkeyResource);
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
